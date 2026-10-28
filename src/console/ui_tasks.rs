@@ -196,8 +196,19 @@ fn task_status(
   task: &TaskView,
   theme: &TaskListTheme,
 ) -> (Cow<'static, str>, Rgb) {
-  if task.is_up() {
-    return (Cow::from(" UP "), theme.up);
+  match (task.kind, task.status) {
+    (TaskKind::Service, TaskState::Ready)
+    | (TaskKind::Job, TaskState::Running) => {
+      return (Cow::from(" UP "), theme.up);
+    }
+    // A service waits on its ready check before it is up.
+    (_, TaskState::Starting | TaskState::Running | TaskState::Ready) => {
+      return (Cow::from(" STARTING "), theme.pending);
+    }
+    (_, TaskState::Stopping) => {
+      return (Cow::from(" STOPPING "), theme.pending);
+    }
+    _ => (),
   }
   let color = match (task.failed(), task.exit_code()) {
     (true, _) => theme.failed,
